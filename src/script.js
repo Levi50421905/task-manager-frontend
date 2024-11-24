@@ -1,3 +1,8 @@
+// Konfigurasi API URL berdasarkan environment
+const API_URL = process.env.NODE_ENV === 'production'
+    ? 'https://nama-app-backend.vercel.app/api'  // Ganti dengan URL backend Vercel Anda
+    : 'http://localhost:3000';
+
 // Utility functions
 function getStatusBadgeClass(status) {
     switch(status) {
@@ -10,14 +15,14 @@ function getStatusBadgeClass(status) {
         default:
             return 'status-badge';
     }
-  }
-  
-  function formatDate(dateString) {
+}
+
+function formatDate(dateString) {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('id-ID', options);
-  }
-  
-  function showNotification(message, type = 'success') {
+}
+
+function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.innerHTML = `
@@ -27,126 +32,125 @@ function getStatusBadgeClass(status) {
         </div>
     `;
     document.body.appendChild(notification);
-  
-    // Auto remove after 3 seconds
+
     setTimeout(() => {
         notification.classList.add('fade-out');
         setTimeout(() => notification.remove(), 300);
     }, 3000);
-  }
-  
-  // Global variable untuk menyimpan mode edit
-  let isEditMode = false;
-  let editingId = null;
-  
-  // CRUD Operations
-  function fetchTasks() {
-    fetch('http://localhost:3000/tasks')
-        .then(response => response.json())
-        .then(tasks => {
-            const taskList = document.getElementById('taskList');
-            taskList.innerHTML = '';
-            tasks.forEach(task => {
-                const newRow = taskList.insertRow();
-                newRow.setAttribute('id', task._id);
-  
-                newRow.innerHTML = `
-                    <td>${task.subject}</td>
-                    <td>${formatDate(task.deadline)}</td>
-                    <td><span class="${getStatusBadgeClass(task.status)}">${task.status}</span></td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-icon btn-edit" onclick="handleEdit('${task._id}')">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon btn-delete" onclick="handleDelete('${task._id}')">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
+}
+
+// Global variables
+let isEditMode = false;
+let editingId = null;
+
+// CRUD Operations dengan error handling yang lebih baik
+async function fetchTasks() {
+    try {
+        const response = await fetch(`${API_URL}/tasks`);
+        if (!response.ok) throw new Error('Gagal mengambil data');
+        
+        const tasks = await response.json();
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+        
+        tasks.forEach(task => {
+            const newRow = taskList.insertRow();
+            newRow.setAttribute('id', task._id);
+
+            newRow.innerHTML = `
+                <td>${task.subject}</td>
+                <td>${formatDate(task.deadline)}</td>
+                <td><span class="${getStatusBadgeClass(task.status)}">${task.status}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-icon btn-edit" onclick="handleEdit('${task._id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon btn-delete" onclick="handleDelete('${task._id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Gagal mengambil data tugas', 'error');
+    }
+}
+
+async function handleSave() {
+    try {
+        const subject = document.getElementById('subject').value;
+        const deadline = document.getElementById('deadline').value;
+        const status = document.getElementById('status').value;
+
+        if (!subject || !deadline || !status) {
+            showNotification('Mohon lengkapi semua data', 'error');
+            return;
+        }
+
+        const taskData = { subject, deadline, status };
+        let response;
+
+        if (isEditMode && editingId) {
+            // Update existing task
+            response = await fetch(`${API_URL}/tasks/${editingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(taskData)
             });
-        })
-        .catch(error => {
-            console.error('Error fetching tasks:', error);
-            showNotification('Gagal mengambil data tugas', 'error');
-        });
-  }
-  
-  function handleSave() {
-    const subject = document.getElementById('subject').value;
-    const deadline = document.getElementById('deadline').value;
-    const status = document.getElementById('status').value;
-  
-    if (!subject || !deadline || !status) {
-        showNotification('Mohon lengkapi semua data', 'error');
-        return;
+        } else {
+            // Create new task
+            response = await fetch(`${API_URL}/tasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(taskData)
+            });
+        }
+
+        if (!response.ok) throw new Error('Gagal menyimpan data');
+
+        await fetchTasks();
+        resetForm();
+        showNotification(isEditMode ? 'Tugas berhasil diperbarui' : 'Tugas berhasil ditambahkan');
+        
+        isEditMode = false;
+        editingId = null;
+        const saveButton = document.getElementById('saveButton');
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Simpan';
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification(`Gagal ${isEditMode ? 'memperbarui' : 'menambahkan'} tugas`, 'error');
     }
-  
-    if (isEditMode && editingId) {
-        // Update existing task
-        const updatedTask = { subject, deadline, status };
-  
-        fetch(`http://localhost:3000/tasks/${editingId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedTask)
-        })
-        .then(response => response.json())
-        .then(() => {
-            fetchTasks();
-            resetForm();
-            showNotification('Tugas berhasil diperbarui');
-            // Reset edit mode
-            isEditMode = false;
-            editingId = null;
-            const saveButton = document.getElementById('saveButton');
-            saveButton.innerHTML = '<i class="fas fa-save"></i> Simpan';
-        })
-        .catch(error => {
-            console.error('Error updating task:', error);
-            showNotification('Gagal memperbarui tugas', 'error');
-        });
-    } else {
-        // Create new task
-        const newTask = { subject, deadline, status };
-  
-        fetch('http://localhost:3000/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newTask)
-        })
-        .then(response => response.json())
-        .then(() => {
-            fetchTasks();
-            resetForm();
-            showNotification('Tugas berhasil ditambahkan');
-        })
-        .catch(error => {
-            console.error('Error saving task:', error);
-            showNotification('Gagal menambahkan tugas', 'error');
-        });
+}
+
+function handleEdit(taskId) {
+    try {
+        isEditMode = true;
+        editingId = taskId;
+
+        const row = document.getElementById(taskId);
+        const subject = row.cells[0].innerHTML;
+        const deadline = row.cells[1].innerHTML;
+        const status = row.cells[2].querySelector('span').innerHTML;
+
+        document.getElementById('subject').value = subject;
+        document.getElementById('deadline').value = formatDateForInput(deadline);
+        document.getElementById('status').value = status;
+
+        const saveButton = document.getElementById('saveButton');
+        saveButton.innerHTML = '<i class="fas fa-check"></i> Update';
+
+        // Scroll ke form
+        document.querySelector('.task-form').scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Gagal memuat data untuk edit', 'error');
     }
-  }
-  
-  function handleEdit(taskId) {
-    isEditMode = true;
-    editingId = taskId;
-  
-    const row = document.getElementById(taskId);
-    const subject = row.cells[0].innerHTML;
-    const deadline = row.cells[1].innerHTML;
-    const status = row.cells[2].querySelector('span').innerHTML;
-  
-    document.getElementById('subject').value = subject;
-    document.getElementById('deadline').value = formatDateForInput(deadline);
-    document.getElementById('status').value = status;
-  
-    const saveButton = document.getElementById('saveButton');
-    saveButton.innerHTML = '<i class="fas fa-check"></i> Update';
-  }
-  
-  function handleDelete(taskId) {
+}
+
+function handleDelete(taskId) {
     const deleteModal = document.createElement('div');
     deleteModal.className = 'modal';
     deleteModal.innerHTML = `
@@ -160,43 +164,64 @@ function getStatusBadgeClass(status) {
         </div>
     `;
     document.body.appendChild(deleteModal);
-  }
-  
-  function confirmDelete(taskId, buttonElement) {
+}
+
+async function confirmDelete(taskId, buttonElement) {
     const modal = buttonElement.closest('.modal');
     
-    fetch(`http://localhost:3000/tasks/${taskId}`, {
-        method: 'DELETE'
-    })
-    .then(() => {
-        fetchTasks();
+    try {
+        const response = await fetch(`${API_URL}/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Gagal menghapus data');
+
+        await fetchTasks();
         modal.remove();
         showNotification('Tugas berhasil dihapus');
-    })
-    .catch(error => {
-        console.error('Error deleting task:', error);
+    } catch (error) {
+        console.error('Error:', error);
         showNotification('Gagal menghapus tugas', 'error');
         modal.remove();
-    });
-  }
-  
-  // Helper functions
-  function resetForm() {
+    }
+}
+
+function resetForm() {
     document.getElementById('subject').value = '';
     document.getElementById('deadline').value = '';
     document.getElementById('status').value = 'Belum Mulai';
     
-    // Reset edit mode
     isEditMode = false;
     editingId = null;
     const saveButton = document.getElementById('saveButton');
     saveButton.innerHTML = '<i class="fas fa-save"></i> Simpan';
-  }
-  
-  function formatDateForInput(dateString) {
+}
+
+function formatDateForInput(dateString) {
     const date = new Date(dateString);
     return date.toISOString().split('T')[0];
-  }
-  
-  // Initialize
-  window.onload = fetchTasks;
+}
+
+// Inisialisasi dan event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    fetchTasks();
+
+    // Event listener untuk form submit
+    document.querySelector('form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleSave();
+    });
+
+    // Event listener untuk tombol reset
+    document.querySelector('button[type="reset"]')?.addEventListener('click', resetForm);
+});
+
+// Fungsi untuk menangani offline/online status
+window.addEventListener('online', () => {
+    showNotification('Koneksi terhubung kembali', 'success');
+    fetchTasks(); // Refresh data ketika online kembali
+});
+
+window.addEventListener('offline', () => {
+    showNotification('Tidak ada koneksi internet', 'error');
+});
