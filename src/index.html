@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Tugas</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Manajemen Tugas</h1>
+        </div>
+
+        <div class="task-form">
+            <form id="taskForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="subject">Mata Pelajaran</label>
+                        <input type="text" id="subject" class="form-control" placeholder="Masukkan mata pelajaran">
+                    </div>
+                    <div class="form-group">
+                        <label for="deadline">Tenggat Waktu</label>
+                        <input type="date" id="deadline" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" class="form-control">
+                            <option value="Belum Mulai">Belum Mulai</option>
+                            <option value="Sedang Dikerjai">Sedang Dikerjai</option>
+                            <option value="Selesai">Selesai</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" id="saveButton" class="btn" onclick="handleSave()">
+                    <i class="fas fa-save"></i> Simpan
+                </button>
+            </form>
+        </div>
+
+        <div class="task-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mata Pelajaran</th>
+                        <th>Tenggat Waktu</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="taskList">
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="/public/script.js"></script>
+</body>
+</html>
